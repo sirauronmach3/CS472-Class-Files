@@ -131,9 +131,18 @@ arp_packet_t *process_arp(raw_packet_t raw_packet) {
     //ntohs() and/or ntohl().  Return a pointer to an arp_packet_t
     //You do not need to allocate any memory. 
 
+	arp_packet_t* arp = (arp_packet_t*) raw_packet;
+	ether_pdu_t eth = arp->eth_hdr;
+	arp_pdu_t arp_pdu = arp->arp_hdr;
+
+	arp_pdu.htype = ntohs(arp_pdu.htype);
+	arp_pdu.ptype = ntohs(arp_pdu.ptype);
+	arp_pdu.op = ntohs(arp_pdu.op);
+
+
     //remove this after you implement the logic, just here to make sure
     //the program compiles
-    return (arp_packet_t *)raw_packet;
+    return arp;
 }
 
 /*
@@ -160,8 +169,28 @@ ARP PACKET DETAILS
      tpa:       192.168.50.99 
      tha:       00:00:00:00:00:00 
  */
- printf("remove this, for now just printing hello from ARP\n");
-    
+
+	char spa[16] = {'\0'}; 
+	char tpa[16] = {'\0'};
+	ip_toStr(arp->arp_hdr.spa, spa, 16); 
+	ip_toStr(arp->arp_hdr.tpa, tpa, 16);
+
+	char sha[18] = {'\0'};
+	char tha[18] = {'\0'};
+	mac_toStr(arp->arp_hdr.sha, sha, 18);
+	mac_toStr(arp->arp_hdr.tha, tha, 18);
+	
+	fprintf(stdout, "ARP PACKET DETAILS\n");
+	fprintf(stdout, "\thtype:\t%#04x\n",arp->arp_hdr.htype);
+	fprintf(stdout, "\tptype:\t%#04x\n",arp->arp_hdr.ptype);
+	fprintf(stdout, "\thlen:\t%d\n", arp->arp_hdr.hlen);
+	fprintf(stdout, "\tplen:\t%d\n", arp->arp_hdr.plen);
+	fprintf(stdout, "\top:\t%d\n", arp->arp_hdr.op);
+
+	fprintf(stdout, "\tspa:\t%s\n", spa);
+	fprintf(stdout, "\tsha:\t%s\n", sha);
+	fprintf(stdout, "\ttpa:\t%s\n", tpa);
+	fprintf(stdout, "\ttha:\t%s\n", tha);
 }
 
 /********************************************************************************/
@@ -180,9 +209,14 @@ bool check_ip_for_icmp(ip_packet_t *ip){
     //otherwise we return false.  The function header gives some more
     //hints.
     
+	ether_pdu_t eth = ip->eth_hdr;
+	ip_pdu_t ip_p = ip->ip_hdr;
+
+	uint8_t protocol = ip_p.protocol;
+
     //remove this after you implement the logic, just here to make sure
     //the program compiles
-    return false;
+    return protocol == 1;
 }
 
 /*
@@ -198,6 +232,13 @@ icmp_packet_t *process_icmp(ip_packet_t *ip){
     //network byte order fields to host byte order fields using
     //ntohs() and/or ntohl().  Return a pointer to an icmp_packet_t
     //You do not need to allocate any memory. 
+
+	ether_pdu_t eth = ip->eth_hdr;
+	ip_pdu_t ip_p = ip->ip_hdr;
+
+	ip_p.total_length = ntohs(ip_p.total_length);
+	ip_p.identification = ntohs(ip_p.identification) ;
+	ip_p.header_checksum = ntohs(ip_p.header_checksum);
 
     //remove this after you implement the logic, just here to make sure
     //the program compiles
@@ -217,9 +258,13 @@ bool is_icmp_echo(icmp_packet_t *icmp) {
     //gives some more hints.  The constants are defined in packet.h so take
     //a look there as well.
     
+	ip_packet_t ip = icmp->ip;
+	icmp_pdu_t icmp_hdr = icmp->icmp_hdr;
+
+	uint8_t type = icmp_hdr.type;
     //remove this after you implement the logic, just here to make sure
     //the program compiles
-    return false;
+    return (type == ICMP_ECHO_REQUEST || type == ICMP_ECHO_RESPONSE);
 }
 
 /*
@@ -235,9 +280,27 @@ icmp_echo_packet_t *process_icmp_echo(icmp_packet_t *icmp){
     //ntohs() and/or ntohl().  Return a pointer to an icmp_echo_packet_t
     //You do not need to allocate any memory. 
 
+	icmp_echo_packet_t* echo = (icmp_echo_packet_t *) icmp;
+
+	ip_packet_t ip = echo->ip;
+		ether_pdu_t eth_hdr = ip.eth_hdr;
+			eth_hdr.frame_type = ntohs(eth_hdr.frame_type);	
+		ip_pdu_t ip_hdr = ip.ip_hdr;
+			ip_hdr.total_length = ntohs(ip_hdr.total_length);
+			ip_hdr.identification = ntohs(ip_hdr.identification);
+			ip_hdr.header_checksum = ntohs(ip_hdr.header_checksum);
+	icmp_echo_pdu_t icmp_echo_hdr = echo->icmp_echo_hdr;
+		icmp_pdu_t icmp_hdr = icmp_echo_hdr.icmp_hdr;	
+			icmp_hdr.checksum = ntohs(icmp_hdr.checksum);
+		icmp_echo_hdr.id = ntohs(icmp_echo_hdr.id);
+		icmp_echo_hdr.sequence = ntohs(icmp_echo_hdr.sequence);
+		icmp_echo_hdr.timestamp = ntohl(icmp_echo_hdr.timestamp);
+		icmp_echo_hdr.timestamp_ms = ntohl(icmp_echo_hdr.timestamp_ms);
+	uint8_t* icmp_payload = (uint8_t*) echo->icmp_payload;
+
     //remove this after you implement the logic, just here to make sure
     //the program compiles
-    return (icmp_echo_packet_t *)icmp;
+    return echo;
 }
 
 /*
@@ -268,16 +331,26 @@ ICMP PACKET DETAILS
      payload:   48 bytes 
      ECHO Timestamp: TS = 2023-09-22 21:06:54.57804
  */
+	ip_packet_t ip = icmp_packet->ip;
+	icmp_echo_pdu_t icmp_echo_hdr = icmp_packet->icmp_echo_hdr;
+		icmp_pdu_t icmp_hdr = icmp_echo_hdr.icmp_hdr;
+    	uint16_t payload_size = ICMP_Payload_Size(icmp_packet);
+	uint8_t * icmp_payload = (uint8_t*) icmp_packet->icmp_payload;
     
-    //remove this, just a placeholder
-    printf("This is where you place your logic to print your ICMP echo PDU header\n");
+	fprintf(stdout, "ICMP PACKET DETAILS\n");
+	fprintf(stdout, "\ttype:\t\t%#04x\n", icmp_hdr.type);
+	fprintf(stdout, "\tchecksum:\t%#04x\n", icmp_hdr.checksum);
+	fprintf(stdout, "\tid:\t\t%#04x\n", icmp_echo_hdr.id);
+	fprintf(stdout, "\tsequence:\t%#04x\n", icmp_echo_hdr.sequence);
+	fprintf(stdout, "\ttimestamp:\t%#x\n", icmp_echo_hdr.timestamp);
+	fprintf(stdout, "\tpayload:\t%d bytes\n", payload_size);
+	fprintf(stdout, "\tECHO Timestamp: %s\n", get_ts_formatted( icmp_echo_hdr.timestamp, icmp_echo_hdr.timestamp_ms));
 
     //after you print the echo header, print the payload.
 
     //We can calculate the payload size using a macro i provided for you in
     //packet.h. Check it out, but I am providing you the code to call it here
     //correctly.  You can thank me later. 
-    uint16_t payload_size = ICMP_Payload_Size(icmp_packet);
 
     //Now print the payload data
     print_icmp_payload(icmp_packet->icmp_payload, payload_size);
