@@ -216,7 +216,7 @@ bool check_ip_for_icmp(ip_packet_t *ip){
 
     //remove this after you implement the logic, just here to make sure
     //the program compiles
-    return protocol == 1;
+    return protocol == ICMP_PTYPE;
 }
 
 /*
@@ -234,6 +234,7 @@ icmp_packet_t *process_icmp(ip_packet_t *ip){
     //You do not need to allocate any memory. 
 
 	ether_pdu_t eth = ip->eth_hdr;
+		eth.frame_type = ntohs(eth.frame_type);
 	ip_pdu_t ip_p = ip->ip_hdr;
 
 	ip_p.total_length = ntohs(ip_p.total_length);
@@ -392,10 +393,24 @@ void print_icmp_payload(uint8_t *payload, uint16_t payload_size) {
 //function header, you can alter your output just make sure it looks
 //nice.  I provided the alogorithm for how I printed the above out
 //in the function header.
+	
+	#define LINE_LENGTH 8
 
-    printf("delete this, but this is where your output goes\n");
-    printf("This is how to print a hex 5 nicely: %02x\n", 5);
-    printf("This is how to print a long value of 20000 nicely: %04lx\n", 2000l);
+	unsigned short num_lines = payload_size / LINE_LENGTH;
+
+	fprintf(stdout, "PAYLOAD\n");
+	fprintf(stdout, "\n");
+	fprintf(stdout, "OFFSET | CONTENTS\n");
+	fprintf(stdout, "-------------------------------------------------------\n");
+
+	for (size_t i = 0; i < num_lines; i++) {
+		unsigned short offset = i * LINE_LENGTH;
+		fprintf(stdout, "%#06x |", offset);
+		for (size_t j = 0; j < LINE_LENGTH; j++) {
+			fprintf(stdout, " %#04x", payload[offset + j]);
+		}
+		fprintf(stdout, "\n");
+	}
 
 }
 
