@@ -1,1 +1,5 @@
 .DS_store
+hw1-pdu-c/decoder
+*.o
+hw2-echo-shell/client
+hw2-echo-shell/server
