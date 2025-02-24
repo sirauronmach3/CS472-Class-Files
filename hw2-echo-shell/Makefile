@@ -1,4 +1,3 @@
-
 HEADERS = cs472-proto.h
 CFLAGS = -g -Wall
 CC = gcc
@@ -17,10 +16,18 @@ server: server.o cs472-proto.o
 server.o: server.c server.h cs472-proto.h
 	$(CC) $(CFLAGS) -c server.c -o server.o
 
-cs472-proto: cs472-proto.c cs472-proto.h
+cs472-proto.o: cs472-proto.c cs472-proto.h
 	$(CC) $(CFLAGS) -c cs472-proto.c -o cs472-proto.o
 
 clean:
-	rm *.o
-	rm ./client
-	rm ./server
+	rm -f *.o
+	rm -f client
+	rm -f server
+
+test: server client
+	./server & 
+	sleep 1 
+	./client -p "Hello there server, how are you?"
+	./client
+	./client -c cs577
+	./client -c bad
